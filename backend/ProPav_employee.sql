@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Oct 15, 2026 at 03:43 AM
+-- Generation Time: Oct 15, 2026 at 04:16 AM
 -- Server version: 8.0.46-0ubuntu0.24.04.4
 -- PHP Version: 8.3.6
 
@@ -28,20 +28,20 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `ProPav_employee` (
-  `id` int NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `position` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` enum('Active','On Leave') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Active',
-  `salary` decimal(12,2) NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `ProPav_id` int NOT NULL,
+  `ProPav_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ProPav_position` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ProPav_status` enum('Active','On Leave') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Active',
+  `ProPav_salary` decimal(12,2) NOT NULL,
+  `ProPav_created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `ProPav_updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ;
 
 --
 -- Dumping data for table `ProPav_employee`
 --
 
-INSERT INTO `ProPav_employee` (`id`, `name`, `position`, `status`, `salary`, `created_at`, `updated_at`) VALUES
+INSERT INTO `ProPav_employee` (`ProPav_id`, `ProPav_name`, `ProPav_position`, `ProPav_status`, `ProPav_salary`, `ProPav_created_at`, `ProPav_updated_at`) VALUES
 (1, 'John Doe', 'Software Engineer', 'Active', 45000.00, '2026-10-15 03:14:17', '2026-10-15 03:14:17'),
 (2, 'Jane Smith', 'Junior Developer', 'Active', 18500.00, '2026-10-15 03:14:17', '2026-10-15 03:14:17'),
 (3, 'Somchai Jaidee', 'Technical Lead', 'On Leave', 85000.00, '2026-10-15 03:14:17', '2026-10-15 03:14:17'),
@@ -59,7 +59,7 @@ INSERT INTO `ProPav_employee` (`id`, `name`, `position`, `status`, `salary`, `cr
 -- Indexes for table `ProPav_employee`
 --
 ALTER TABLE `ProPav_employee`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`ProPav_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -69,7 +69,7 @@ ALTER TABLE `ProPav_employee`
 -- AUTO_INCREMENT for table `ProPav_employee`
 --
 ALTER TABLE `ProPav_employee`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `ProPav_id` int NOT NULL AUTO_INCREMENT;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
