@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, Alert, Platform,
-  ActivityIndicator, StyleSheet, SafeAreaView, KeyboardAvoidingView,
+  ActivityIndicator, StyleSheet, SafeAreaView, KeyboardAvoidingView, RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { API_URL } from './config';
@@ -141,6 +141,20 @@ function DashboardScreen({ token, onLogout }) {
   const [editPosition, setEditPosition] = useState('');
   const [editSalary, setEditSalary] = useState('');
 
+  const [status, setStatus] = useState(null); // {mode, table} from /api/status; null = unknown
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Data source indicator. Failures are silent (the list load shows the network error).
+  const loadStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/status`);
+      const data = await res.json();
+      setStatus(res.ok && data && data.mode ? data : null);
+    } catch (e) {
+      setStatus(null);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const q = searchRef.current.trim();
@@ -174,6 +188,16 @@ function DashboardScreen({ token, onLogout }) {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [search, load]);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([load(), loadStatus()]);
+    setRefreshing(false);
+  };
 
   const addEmployee = async () => {
     const sal = Number(salary);
@@ -293,6 +317,20 @@ function DashboardScreen({ token, onLogout }) {
         </TouchableOpacity>
       </View>
 
+      {status && status.mode === 'memory' && (
+        <View style={s.offlineBanner}>
+          <Text style={s.offlineText}>
+            Offline mode — database unavailable, using mock data. Changes won't be saved.
+          </Text>
+        </View>
+      )}
+      {status && status.mode === 'mysql' && (
+        <View style={s.sourceRow}>
+          <View style={s.sourceDot} />
+          <Text style={s.small}>Connected to MySQL · {status.table || 'ProPav_employee'}</Text>
+        </View>
+      )}
+
       <View style={s.statsRow}>
         {[
           { label: 'Total', n: total },
@@ -385,6 +423,7 @@ function DashboardScreen({ token, onLogout }) {
           extraData={[editId, editName, editPosition, editSalary]}
           keyExtractor={(e) => e.id}
           ListHeaderComponent={header}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
             const editing = editId === item.id;
@@ -471,6 +510,10 @@ const s = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24 },
   title: { fontSize: 24, fontWeight: '700', color: C.text },
   textBtn: { color: C.accent, fontSize: 14, fontWeight: '500' },
+  offlineBanner: { backgroundColor: '#F3E6D3', borderColor: '#E4C9A3', borderWidth: 1, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12 },
+  offlineText: { color: '#8A5A2B', fontSize: 13 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', marginTop: -12, marginBottom: 12 },
+  sourceDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.sage, marginRight: 6 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16 },
   statNum: { fontSize: 28, fontWeight: '700', color: C.text, marginTop: 4 },
