@@ -37,11 +37,16 @@ function makeApi(token, onUnauthorized) {
 }
 
 const C = {
-  bg: '#FAFAFA', card: '#FFFFFF', text: '#111111', muted: '#6B7280', border: '#E5E7EB',
-  accent: '#111111', danger: '#DC2626', gray: '#F3F4F6',
-  success: '#047857', successBg: '#ECFDF5', warning: '#B45309', warningBg: '#FFFBEB',
+  bg: '#F5F0E6', card: '#FBF8F2', text: '#3B2F2A', muted: '#8A7B6F', border: '#E4DACB',
+  accent: '#8B6F4E', accentDark: '#6F5638', onAccent: '#FBF8F2', sage: '#A3B18A',
+  danger: '#B5544A', dangerBg: '#F4E1DC', gray: '#EFE7DA',
+  inputBg: '#FFFDF9', placeholder: '#B3A595',
+  avatarBg: '#EADFCF', avatarText: '#6F5638',
+  success: '#5F7A4A', successBg: '#E6EBDC', warning: '#B07A3C', warningBg: '#F3E6D3',
+  shadow: 'rgba(59,47,42,0.06)',
 };
-const R = 10;
+const TIER = { 'Tier 1': '#A3B18A', 'Tier 2': '#C8A97E', 'Tier 3': '#8B6F4E' };
+const R = 12;
 
 // Labeled text input (styling only).
 function Field({ label, right, style, ...props }) {
@@ -51,7 +56,7 @@ function Field({ label, right, style, ...props }) {
       <Text style={s.label}>{label}</Text>
       <View style={[s.inputWrap, focused && s.inputFocused]}>
         <TextInput
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={C.placeholder}
           {...props}
           style={[s.input, style]}
           onFocus={() => setFocused(true)}
@@ -107,7 +112,7 @@ function LoginScreen({ onLogin }) {
               </TouchableOpacity>
             } />
           <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={submit} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Login</Text>}
+            {loading ? <ActivityIndicator color={C.onAccent} /> : <Text style={s.btnText}>Login</Text>}
           </TouchableOpacity>
           <Text style={s.hint}>Demo: admin / password123</Text>
         </View>
@@ -320,9 +325,9 @@ function DashboardScreen({ token, onLogout }) {
         )}
       </View>
 
-      <Text style={s.sectionTitle}>Salary structure</Text>
+      <Text style={s.sectionTitle}>SALARY STRUCTURE</Text>
       <TouchableOpacity style={[s.btn, analyzing && s.btnDisabled, { marginBottom: 16 }]} onPress={analyze} disabled={analyzing}>
-        {analyzing ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Analyze salary structure</Text>}
+        {analyzing ? <ActivityIndicator color={C.onAccent} /> : <Text style={s.btnText}>Analyze salary structure</Text>}
       </TouchableOpacity>
       {clusters && !analyzing && clusters.length === 0 && (
         <Text style={s.emptyText}>No data</Text>
@@ -332,7 +337,7 @@ function DashboardScreen({ token, onLogout }) {
           {clusters.map((c) => {
             const pct = clusterTotal ? (c.count / clusterTotal) * 100 : 0;
             return (
-              <View key={c.group} style={s.card}>
+              <View key={c.group} style={[s.card, { borderLeftWidth: 3, borderLeftColor: TIER[c.group] || C.sage }]}>
                 <View style={s.tierTop}>
                   <Text style={s.tier}>{c.group}</Text>
                   <Text style={s.muted}>{c.count} employees</Text>
@@ -340,7 +345,7 @@ function DashboardScreen({ token, onLogout }) {
                 <Text style={s.bigNum}>฿{Math.round(c.centroid).toLocaleString()}</Text>
                 <Text style={s.small}>average salary</Text>
                 <View style={s.barTrack}>
-                  <View style={[s.barFill, { width: `${pct}%` }]} />
+                  <View style={[s.barFill, { width: `${pct}%`, backgroundColor: TIER[c.group] || C.sage }]} />
                 </View>
               </View>
             );
@@ -348,12 +353,12 @@ function DashboardScreen({ token, onLogout }) {
         </View>
       )}
 
-      <Text style={[s.sectionTitle, { marginTop: 8 }]}>Employees ({employees.length})</Text>
+      <Text style={[s.sectionTitle, { marginTop: 8 }]}>EMPLOYEES ({employees.length})</Text>
       <View style={s.searchWrap}>
         <TextInput
           style={s.searchInput}
           placeholder="Search name or position"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={C.placeholder}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
@@ -427,7 +432,7 @@ function DashboardScreen({ token, onLogout }) {
                         <TouchableOpacity style={s.smallBtn} onPress={() => toggleStatus(item.id)}>
                           <Text style={s.smallBtnText}>Toggle</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={s.smallBtn} onPress={() => remove(item)}>
+                        <TouchableOpacity style={[s.smallBtn, s.dangerBtn]} onPress={() => remove(item)}>
                           <Text style={[s.smallBtnText, { color: C.danger }]}>Delete</Text>
                         </TouchableOpacity>
                       </View>
@@ -459,7 +464,7 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
   page: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   pagePad: { paddingHorizontal: 16 },
-  card: { backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12 },
+  card: { backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12, shadowColor: '#3B2F2A', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
   cardTitle: { fontSize: 16, fontWeight: '600', color: C.text },
   loginCard: { width: '100%', maxWidth: 400, backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 32 },
   loginTitle: { fontSize: 24, fontWeight: '700', color: C.text },
@@ -467,33 +472,33 @@ const s = StyleSheet.create({
   hint: { color: C.muted, fontSize: 12, marginTop: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24 },
   title: { fontSize: 24, fontWeight: '700', color: C.text },
-  textBtn: { color: C.muted, fontSize: 14, fontWeight: '500' },
+  textBtn: { color: C.accent, fontSize: 14, fontWeight: '500' },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16 },
   statNum: { fontSize: 28, fontWeight: '700', color: C.text, marginTop: 4 },
   statLabel: { color: C.muted, fontSize: 12, fontWeight: '500' },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: C.text, marginTop: 12, marginBottom: 12 },
+  sectionTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: C.muted, marginTop: 12, marginBottom: 12 },
   muted: { color: C.muted, fontSize: 14 },
   small: { color: C.muted, fontSize: 12 },
   collapseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 12, fontWeight: '500', color: C.muted, marginBottom: 6 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border, borderRadius: R, backgroundColor: '#fff', paddingHorizontal: 12 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border, borderRadius: R, backgroundColor: C.inputBg, paddingHorizontal: 12 },
   inputFocused: { borderColor: C.accent },
   input: { flex: 1, paddingVertical: 11, fontSize: 14, color: C.text, outlineStyle: 'none' },
   btn: { backgroundColor: C.accent, paddingVertical: 13, borderRadius: R, alignItems: 'center', width: '100%' },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  btnText: { color: C.onAccent, fontWeight: '600', fontSize: 14 },
   tierTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   tier: { fontWeight: '600', fontSize: 14, color: C.text },
   bigNum: { fontSize: 28, fontWeight: '700', color: C.text },
   barTrack: { height: 4, borderRadius: 2, backgroundColor: C.gray, marginTop: 12, overflow: 'hidden' },
-  barFill: { height: 4, borderRadius: 2, backgroundColor: '#9CA3AF' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, marginBottom: 12 },
+  barFill: { height: 4, borderRadius: 2, backgroundColor: C.sage },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.inputBg, borderRadius: R, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, marginBottom: 12 },
   searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: C.text, outlineStyle: 'none' },
   emptyText: { color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 },
   itemTop: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.gray, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarText: { color: C.text, fontWeight: '600', fontSize: 14 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.avatarBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { color: C.avatarText, fontWeight: '600', fontSize: 14 },
   name: { fontWeight: '600', fontSize: 16, color: C.text, marginBottom: 2 },
   salaryCol: { alignItems: 'flex-end', marginLeft: 8 },
   salaryText: { fontWeight: '600', fontSize: 16, color: C.text },
@@ -503,7 +508,8 @@ const s = StyleSheet.create({
   pillText: { fontSize: 12, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 16 },
   smallBtn: { borderWidth: 1, borderColor: C.border, borderRadius: R, paddingVertical: 7, paddingHorizontal: 14 },
+  dangerBtn: { borderColor: C.danger, backgroundColor: C.dangerBg },
   smallBtnText: { color: C.text, fontWeight: '500', fontSize: 13 },
   smallPrimary: { backgroundColor: C.accent, borderRadius: R, paddingVertical: 7, paddingHorizontal: 14 },
-  smallPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 13 },
+  smallPrimaryText: { color: C.onAccent, fontWeight: '500', fontSize: 13 },
 });
