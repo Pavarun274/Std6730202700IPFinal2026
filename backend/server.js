@@ -2,35 +2,27 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { kmeans1D } = require('./kmeans');
-const db = require('./db');
-const { mockEmployees } = require('./mockData');
+const { mysqlRepo, memoryRepo } = require('./repo');
+
+// Chosen once at startup (see bottom of file): MySQL when reachable, otherwise in-memory mock data.
+let repo = memoryRepo;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const toEmployee = (r) => ({
-  id: String(r.id),
-  name: r.name,
-  position: r.position,
-  status: r.status,
-  salary: Number(r.salary),
-});
-
-const dbError = (res, err) => {
-  console.error(err);
-  res.status(500).json({ success: false, message: 'Database error' });
-};
-
-const getById = async (id) => {
-  const [rows] = await db.query('SELECT * FROM ProPav_employee WHERE id = ?', [id]);
-  return rows[0] ? toEmployee(rows[0]) : null;
-};
-
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
 
 app.get('/', (req, res) =>
   res.status(200).json({ success: true, message: 'HR backend running. API under /api' })
+);
+
+app.get('/api/status', (req, res) =>
+  res.status(200).json(
+    repo.mode === 'mysql'
+      ? { success: true, mode: 'mysql', table: repo.table }
+      : { success: true, mode: 'memory' }
+  )
 );
 
 app.post('/api/login', (req, res) => {
@@ -57,17 +49,7 @@ app.get('/api/employees', async (req, res) => {
   try {
     const raw = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
     const q = typeof raw === 'string' ? raw.trim() : '';
-    let rows;
-    if (!q) {
-      [rows] = await db.query('SELECT * FROM ProPav_employee ORDER BY id');
-    } else {
-      const like = `%${q}%`;
-      [rows] = await db.query(
-        'SELECT * FROM ProPav_employee WHERE name LIKE ? OR position LIKE ? OR status LIKE ? ORDER BY id',
-        [like, like, like]
-      );
-    }
-    res.status(200).json(rows.map(toEmployee));
+    res.status(200).json(await repo.list(q));
   } catch (err) {
     dbError(res, err);
   }
@@ -76,8 +58,7 @@ app.get('/api/employees', async (req, res) => {
 // Must be declared before any /api/employees/:id route.
 app.get('/api/employees/salary-clusters', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT salary FROM ProPav_employee');
-    const salaries = rows.map((r) => Number(r.salary));
+    const salaries = await repo.salaries();
     const clusters = kmeans1D(salaries, 3).map((c, i) => ({
       group: `Tier ${i + 1}`,
       centroid: c.centroid,
@@ -99,11 +80,9 @@ app.post('/api/employees', async (req, res) => {
     return res.status(400).json({ success: false, message: 'salary must be a positive number' });
   }
   try {
-    const [result] = await db.query(
-      "INSERT INTO ProPav_employee (name, position, status, salary) VALUES (?, ?, 'Active', ?)",
-      [String(name).trim(), String(position).trim(), sal]
+    res.status(201).json(
+      await repo.create({ name: String(name).trim(), position: String(position).trim(), salary: sal })
     );
-    res.status(201).json(await getById(result.insertId));
   } catch (err) {
     dbError(res, err);
   }
@@ -111,7 +90,7 @@ app.post('/api/employees', async (req, res) => {
 
 app.put('/api/employees/:id', async (req, res) => {
   try {
-    if (!(await getById(req.params.id))) {
+    if (!(await repo.get(req.params.id))) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
     const { name, position, salary } = req.body || {};
@@ -122,13 +101,12 @@ app.put('/api/employees/:id', async (req, res) => {
     if (!Number.isFinite(sal) || sal <= 0) {
       return res.status(400).json({ success: false, message: 'salary must be a positive number' });
     }
-    await db.query('UPDATE ProPav_employee SET name = ?, position = ?, salary = ? WHERE id = ?', [
-      String(name).trim(),
-      String(position).trim(),
-      sal,
-      req.params.id,
-    ]);
-    res.status(200).json(await getById(req.params.id));
+    const updated = await repo.update(req.params.id, {
+      name: String(name).trim(),
+      position: String(position).trim(),
+      salary: sal,
+    });
+    res.status(200).json(updated);
   } catch (err) {
     dbError(res, err);
   }
@@ -136,14 +114,9 @@ app.put('/api/employees/:id', async (req, res) => {
 
 app.put('/api/employees/:id/status', async (req, res) => {
   try {
-    const [result] = await db.query(
-      "UPDATE ProPav_employee SET status = IF(status = 'Active', 'On Leave', 'Active') WHERE id = ?",
-      [req.params.id]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
-    }
-    res.status(200).json(await getById(req.params.id));
+    const emp = await repo.toggle(req.params.id);
+    if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
+    res.status(200).json(emp);
   } catch (err) {
     dbError(res, err);
   }
@@ -151,9 +124,8 @@ app.put('/api/employees/:id/status', async (req, res) => {
 
 app.delete('/api/employees/:id', async (req, res) => {
   try {
-    const emp = await getById(req.params.id);
+    const emp = await repo.remove(req.params.id);
     if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
-    await db.query('DELETE FROM ProPav_employee WHERE id = ?', [req.params.id]);
     res.status(200).json({ success: true, employee: emp });
   } catch (err) {
     dbError(res, err);
@@ -169,24 +141,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
-// Seed mockEmployees into ProPav_employee only when the table is empty.
-const seedIfEmpty = async () => {
-  const [[{ n }]] = await db.query('SELECT COUNT(*) AS n FROM ProPav_employee');
-  if (n > 0) {
-    console.log(`seed skipped (table has ${n} rows)`);
-    return;
-  }
-  await db.query('INSERT INTO ProPav_employee (name, position, status, salary) VALUES ?', [
-    mockEmployees.map((e) => [e.name, e.position, e.status, e.salary]),
-  ]);
-  console.log(`seeded ${mockEmployees.length} mock employees into ProPav_employee`);
-};
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`HR backend listening on 0.0.0.0:${PORT}`);
-  db.query('SELECT 1')
-    .then(() => console.log('DB connected'))
-    .then(seedIfEmpty)
-    .catch((err) => console.error('DB startup FAILED:', err.code || '', err.message));
-});
+
+(async () => {
+  try {
+    await mysqlRepo.init();
+    repo = mysqlRepo;
+    console.log('DB connected');
+  } catch (err) {
+    console.error('DB startup FAILED:', err.code || '', err.message);
+    console.log('DB unavailable \u2013 using in-memory mockData fallback');
+    await memoryRepo.init();
+    repo = memoryRepo;
+  }
+  app.listen(PORT, '0.0.0.0', () => console.log(`HR backend listening on 0.0.0.0:${PORT} (${repo.mode})`));
+})();
