@@ -20,6 +20,10 @@ let nextId = 9;
 
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
 
+app.get('/', (req, res) =>
+  res.status(200).json({ success: true, message: 'HR backend running. API under /api' })
+);
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
   if (isBlank(username) || isBlank(password)) {
@@ -58,8 +62,8 @@ app.post('/api/employees', (req, res) => {
     return res.status(400).json({ success: false, message: 'name, position and salary are required' });
   }
   const sal = Number(salary);
-  if (!Number.isFinite(sal) || sal < 0) {
-    return res.status(400).json({ success: false, message: 'salary must be a non-negative number' });
+  if (!Number.isFinite(sal) || sal <= 0) {
+    return res.status(400).json({ success: false, message: 'salary must be a positive number' });
   }
   const emp = {
     id: String(nextId++),

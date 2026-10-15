@@ -111,8 +111,8 @@ function DashboardScreen({ token, onLogout }) {
     if (!name.trim() || !position.trim() || !salary.trim()) {
       return notify('Validation', 'Name, position and salary are required.');
     }
-    if (!Number.isFinite(sal) || sal < 0) {
-      return notify('Validation', 'Salary must be a valid number.');
+    if (!Number.isFinite(sal) || sal <= 0) {
+      return notify('Validation', 'Salary must be a positive number.');
     }
     try {
       const res = await api('/employees', {
@@ -194,13 +194,16 @@ function DashboardScreen({ token, onLogout }) {
         <Text style={s.btnText}>Analyze Salary Structure</Text>
       </TouchableOpacity>
       {analyzing && <ActivityIndicator size="large" style={{ marginVertical: 12 }} />}
-      {clusters && !analyzing && (
+      {clusters && !analyzing && clusters.length === 0 && (
+        <Text style={{ marginBottom: 12 }}>No data</Text>
+      )}
+      {clusters && !analyzing && clusters.length > 0 && (
         <View style={s.cards}>
           {clusters.map((c) => (
             <View key={c.group} style={s.summary}>
               <Text style={s.tier}>{c.group}</Text>
               <Text>Employees: {c.count}</Text>
-              <Text>Avg salary: {Math.round(c.centroid).toLocaleString()}</Text>
+              <Text>Avg salary: ฿{Math.round(c.centroid).toLocaleString()}</Text>
             </View>
           ))}
         </View>
