@@ -43,7 +43,16 @@ app.use('/api/employees', (req, res, next) => {
   next();
 });
 
-app.get('/api/employees', (req, res) => res.status(200).json(employees));
+// Optional ?search=<text>: case-insensitive match on name, position or status.
+app.get('/api/employees', (req, res) => {
+  const raw = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
+  const q = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (!q) return res.status(200).json(employees);
+  const matches = employees.filter((e) =>
+    [e.name, e.position, e.status].some((f) => String(f).toLowerCase().includes(q))
+  );
+  res.status(200).json(matches);
+});
 
 // Must be declared before any /api/employees/:id route.
 app.get('/api/employees/salary-clusters', (req, res) => {

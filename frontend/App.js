@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, Alert, Platform,
   ActivityIndicator, StyleSheet, SafeAreaView, KeyboardAvoidingView,
@@ -103,7 +103,10 @@ function DashboardScreen({ token, onLogout }) {
     notify('Session expired', 'Please log in again.');
     onLogout();
   });
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState([]); // list shown (filtered by search)
+  const [allEmployees, setAllEmployees] = useState([]); // always the full list (stats)
+  const [search, setSearch] = useState('');
+  const searchRef = useRef('');
   const [listLoading, setListLoading] = useState(true);
   const [name, setName] = useState('');
   const [position, setPosition] = useState('');
@@ -113,8 +116,17 @@ function DashboardScreen({ token, onLogout }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await api('/employees');
-      setEmployees(await res.json());
+      const q = searchRef.current.trim();
+      const fullRes = await api('/employees');
+      const full = await fullRes.json();
+      setAllEmployees(full);
+      if (q) {
+        const res = await api(`/employees?search=${encodeURIComponent(q)}`);
+        // Ignore stale responses if the search text changed meanwhile.
+        if (searchRef.current.trim() === q) setEmployees(await res.json());
+      } else {
+        setEmployees(full);
+      }
     } catch (e) {
       if (e.message === 'unauthorized') return;
       notify('Network error', 'Failed to load employees.');
@@ -123,7 +135,18 @@ function DashboardScreen({ token, onLogout }) {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Initial load immediately; afterwards debounce 300ms while the user types.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    searchRef.current = search;
+    if (firstRun.current) {
+      firstRun.current = false;
+      load();
+      return undefined;
+    }
+    const t = setTimeout(load, 300);
+    return () => clearTimeout(t);
+  }, [search, load]);
 
   const addEmployee = async () => {
     const sal = Number(salary);
@@ -191,8 +214,8 @@ function DashboardScreen({ token, onLogout }) {
     }
   };
 
-  const activeCount = employees.filter((e) => e.status === 'Active').length;
-  const leaveCount = employees.filter((e) => e.status === 'On Leave').length;
+  const activeCount = allEmployees.filter((e) => e.status === 'Active').length;
+  const leaveCount = allEmployees.filter((e) => e.status === 'On Leave').length;
   const initials = (n) =>
     String(n).trim().split(/\s+/).slice(0, 2).map((w) => (w[0] || '').toUpperCase()).join('');
   const tierColors = ['#16A34A', '#4F46E5', '#D97706'];
@@ -204,7 +227,7 @@ function DashboardScreen({ token, onLogout }) {
       <View style={s.headerRow}>
         <View>
           <Text style={s.title}>Dashboard</Text>
-          <Text style={s.muted}>{employees.length} employees</Text>
+          <Text style={s.muted}>{allEmployees.length} employees</Text>
         </View>
         <TouchableOpacity style={s.logout} onPress={onLogout}>
           <Text style={s.logoutText}>Logout</Text>
@@ -212,7 +235,7 @@ function DashboardScreen({ token, onLogout }) {
       </View>
 
       <View style={s.statsRow}>
-        <View style={s.stat}><Text style={s.statNum}>{employees.length}</Text><Text style={s.statLabel}>Total</Text></View>
+        <View style={s.stat}><Text style={s.statNum}>{allEmployees.length}</Text><Text style={s.statLabel}>Total</Text></View>
         <View style={s.stat}><Text style={[s.statNum, { color: '#16A34A' }]}>{activeCount}</Text><Text style={s.statLabel}>Active</Text></View>
         <View style={s.stat}><Text style={[s.statNum, { color: '#D97706' }]}>{leaveCount}</Text><Text style={s.statLabel}>On Leave</Text></View>
       </View>
@@ -247,7 +270,26 @@ function DashboardScreen({ token, onLogout }) {
       )}
 
       <Text style={s.section}>Employees ({employees.length})</Text>
+      <View style={s.searchWrap}>
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search name or position…"
+          placeholderTextColor="#9CA3AF"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity style={s.clearBtn} onPress={() => setSearch('')} hitSlop={8}>
+            <Text style={s.clearText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       {listLoading && <ActivityIndicator color="#4F46E5" style={{ margin: 12 }} />}
+      {!listLoading && employees.length === 0 && (
+        <View style={s.card}><Text style={s.muted}>No employees found</Text></View>
+      )}
     </View>
   );
 
@@ -328,6 +370,10 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
   input: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, marginBottom: 14, backgroundColor: '#F9FAFB', color: '#111827' },
   inputFocused: { borderColor: PRIMARY, backgroundColor: '#fff' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  searchInput: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, color: '#111827' },
+  clearBtn: { paddingHorizontal: 12, paddingVertical: 8 },
+  clearText: { color: '#6B7280', fontSize: 16, fontWeight: '700' },
   btn: { backgroundColor: PRIMARY, paddingVertical: 14, borderRadius: 12, alignItems: 'center', width: '100%' },
   btnDisabled: { opacity: 0.7 },
   analyze: { backgroundColor: '#7C3AED', marginBottom: 16 },
