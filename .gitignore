@@ -1,0 +1,14 @@
+*.pdf
+
+# dependencies
+node_modules/
+
+# env / logs
+.env
+*.log
+.DS_Store
+
+# expo
+.expo/
+dist/
+web-build/
