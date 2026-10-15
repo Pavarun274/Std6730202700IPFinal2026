@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS ProPav_employee (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  position VARCHAR(100) NOT NULL,
-  status ENUM('Active','On Leave') NOT NULL DEFAULT 'Active',
-  salary DECIMAL(12,2) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ProPav_id INT AUTO_INCREMENT PRIMARY KEY,
+  ProPav_name VARCHAR(100) NOT NULL,
+  ProPav_position VARCHAR(100) NOT NULL,
+  ProPav_status ENUM('Active','On Leave') NOT NULL DEFAULT 'Active',
+  ProPav_salary DECIMAL(12,2) NOT NULL,
+  ProPav_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ProPav_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-INSERT INTO ProPav_employee (name, position, status, salary) VALUES
+INSERT INTO ProPav_employee (ProPav_name, ProPav_position, ProPav_status, ProPav_salary) VALUES
   ('John Doe', 'Software Engineer', 'Active', 45000),
   ('Jane Smith', 'Junior Developer', 'Active', 18500),
   ('Somchai Jaidee', 'Technical Lead', 'On Leave', 85000),

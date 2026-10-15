@@ -5,6 +5,10 @@ const { mockEmployees } = require('./mockData');
 
 const TABLE = 'ProPav_employee';
 
+// Column list aliasing ProPav_* columns to the API field names.
+const COLS =
+  'ProPav_id AS id, ProPav_name AS name, ProPav_position AS position, ProPav_status AS status, ProPav_salary AS salary';
+
 const toEmployee = (r) => ({
   id: String(r.id),
   name: r.name,
@@ -29,7 +33,7 @@ const mysqlRepo = {
       console.log(`seed skipped (table has ${n} rows)`);
       return;
     }
-    await this.db.query(`INSERT INTO ${TABLE} (name, position, status, salary) VALUES ?`, [
+    await this.db.query(`INSERT INTO ${TABLE} (ProPav_name, ProPav_position, ProPav_status, ProPav_salary) VALUES ?`, [
       mockEmployees.map((e) => [e.name, e.position, e.status, e.salary]),
     ]);
     console.log(`seeded ${mockEmployees.length} mock employees into ${TABLE}`);
@@ -37,37 +41,37 @@ const mysqlRepo = {
 
   async list(search) {
     if (!search) {
-      const [rows] = await this.db.query(`SELECT * FROM ${TABLE} ORDER BY id`);
+      const [rows] = await this.db.query(`SELECT ${COLS} FROM ${TABLE} ORDER BY ProPav_id`);
       return rows.map(toEmployee);
     }
     const like = `%${search}%`;
     const [rows] = await this.db.query(
-      `SELECT * FROM ${TABLE} WHERE name LIKE ? OR position LIKE ? OR status LIKE ? ORDER BY id`,
+      `SELECT ${COLS} FROM ${TABLE} WHERE ProPav_name LIKE ? OR ProPav_position LIKE ? OR ProPav_status LIKE ? ORDER BY ProPav_id`,
       [like, like, like]
     );
     return rows.map(toEmployee);
   },
 
   async salaries() {
-    const [rows] = await this.db.query(`SELECT salary FROM ${TABLE}`);
+    const [rows] = await this.db.query(`SELECT ProPav_salary AS salary FROM ${TABLE}`);
     return rows.map((r) => Number(r.salary));
   },
 
   async get(id) {
-    const [rows] = await this.db.query(`SELECT * FROM ${TABLE} WHERE id = ?`, [id]);
+    const [rows] = await this.db.query(`SELECT ${COLS} FROM ${TABLE} WHERE ProPav_id = ?`, [id]);
     return rows[0] ? toEmployee(rows[0]) : null;
   },
 
   async create({ name, position, salary }) {
     const [result] = await this.db.query(
-      `INSERT INTO ${TABLE} (name, position, status, salary) VALUES (?, ?, 'Active', ?)`,
+      `INSERT INTO ${TABLE} (ProPav_name, ProPav_position, ProPav_status, ProPav_salary) VALUES (?, ?, 'Active', ?)`,
       [name, position, salary]
     );
     return this.get(result.insertId);
   },
 
   async update(id, { name, position, salary }) {
-    await this.db.query(`UPDATE ${TABLE} SET name = ?, position = ?, salary = ? WHERE id = ?`, [
+    await this.db.query(`UPDATE ${TABLE} SET ProPav_name = ?, ProPav_position = ?, ProPav_salary = ? WHERE ProPav_id = ?`, [
       name,
       position,
       salary,
@@ -78,7 +82,7 @@ const mysqlRepo = {
 
   async toggle(id) {
     const [result] = await this.db.query(
-      `UPDATE ${TABLE} SET status = IF(status = 'Active', 'On Leave', 'Active') WHERE id = ?`,
+      `UPDATE ${TABLE} SET ProPav_status = IF(ProPav_status = 'Active', 'On Leave', 'Active') WHERE ProPav_id = ?`,
       [id]
     );
     return result.affectedRows === 0 ? null : this.get(id);
@@ -87,7 +91,7 @@ const mysqlRepo = {
   async remove(id) {
     const emp = await this.get(id);
     if (!emp) return null;
-    await this.db.query(`DELETE FROM ${TABLE} WHERE id = ?`, [id]);
+    await this.db.query(`DELETE FROM ${TABLE} WHERE ProPav_id = ?`, [id]);
     return emp;
   },
 };
