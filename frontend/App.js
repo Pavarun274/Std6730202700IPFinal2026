@@ -36,6 +36,23 @@ function makeApi(token, onUnauthorized) {
   };
 }
 
+// Labeled text input with a highlighted border while focused (styling only).
+function Field({ label, style, ...props }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View>
+      <Text style={s.label}>{label}</Text>
+      <TextInput
+        placeholderTextColor="#9CA3AF"
+        {...props}
+        style={[s.input, focused && s.inputFocused, style]}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+    </View>
+  );
+}
+
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -65,15 +82,17 @@ function LoginScreen({ onLogin }) {
 
   return (
     <SafeAreaView style={s.center}>
-      <View style={s.card}>
-        <Text style={s.title}>HR Manager</Text>
-        <TextInput style={s.input} placeholder="Username" autoCapitalize="none"
+      <View style={[s.card, s.loginCard]}>
+        <Text style={s.loginTitle}>HR Manager</Text>
+        <Text style={s.subtitle}>Employee & Salary Analytics</Text>
+        <Field label="Username" placeholder="Username" autoCapitalize="none"
           value={username} onChangeText={setUsername} />
-        <TextInput style={s.input} placeholder="Password" secureTextEntry
+        <Field label="Password" placeholder="Password" secureTextEntry
           value={password} onChangeText={setPassword} onSubmitEditing={submit} />
-        <TouchableOpacity style={s.btn} onPress={submit} disabled={loading}>
+        <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={submit} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Login</Text>}
         </TouchableOpacity>
+        <Text style={s.hint}>Demo: admin / password123</Text>
       </View>
     </SafeAreaView>
   );
@@ -172,45 +191,63 @@ function DashboardScreen({ token, onLogout }) {
     }
   };
 
+  const activeCount = employees.filter((e) => e.status === 'Active').length;
+  const leaveCount = employees.filter((e) => e.status === 'On Leave').length;
+  const initials = (n) =>
+    String(n).trim().split(/\s+/).slice(0, 2).map((w) => (w[0] || '').toUpperCase()).join('');
+  const tierColors = ['#16A34A', '#4F46E5', '#D97706'];
+  const avatarColors = ['#4F46E5', '#0EA5E9', '#16A34A', '#D97706', '#DB2777', '#7C3AED'];
+  const avatarColor = (id) => avatarColors[parseInt(id, 10) % avatarColors.length || 0];
+
   const header = (
     <View>
-      <View style={s.row}>
-        <Text style={s.title}>Dashboard</Text>
-        <TouchableOpacity onPress={onLogout}><Text style={s.link}>Logout</Text></TouchableOpacity>
+      <View style={s.headerRow}>
+        <View>
+          <Text style={s.title}>Dashboard</Text>
+          <Text style={s.muted}>{employees.length} employees</Text>
+        </View>
+        <TouchableOpacity style={s.logout} onPress={onLogout}>
+          <Text style={s.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={s.statsRow}>
+        <View style={s.stat}><Text style={s.statNum}>{employees.length}</Text><Text style={s.statLabel}>Total</Text></View>
+        <View style={s.stat}><Text style={[s.statNum, { color: '#16A34A' }]}>{activeCount}</Text><Text style={s.statLabel}>Active</Text></View>
+        <View style={s.stat}><Text style={[s.statNum, { color: '#D97706' }]}>{leaveCount}</Text><Text style={s.statLabel}>On Leave</Text></View>
       </View>
 
       <View style={s.card}>
         <Text style={s.section}>Add Employee</Text>
-        <TextInput style={s.input} placeholder="Name" value={name} onChangeText={setName} />
-        <TextInput style={s.input} placeholder="Position" value={position} onChangeText={setPosition} />
-        <TextInput style={s.input} placeholder="Salary" keyboardType="numeric"
+        <Field label="Name" placeholder="Full name" value={name} onChangeText={setName} />
+        <Field label="Position" placeholder="Job title" value={position} onChangeText={setPosition} />
+        <Field label="Salary" placeholder="e.g. 45000" keyboardType="numeric"
           value={salary} onChangeText={setSalary} />
         <TouchableOpacity style={s.btn} onPress={addEmployee}>
           <Text style={s.btnText}>Add Employee</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={[s.btn, s.analyze]} onPress={analyze} disabled={analyzing}>
-        <Text style={s.btnText}>Analyze Salary Structure</Text>
+      <TouchableOpacity style={[s.btn, s.analyze, analyzing && s.btnDisabled]} onPress={analyze} disabled={analyzing}>
+        {analyzing ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Analyze Salary Structure</Text>}
       </TouchableOpacity>
-      {analyzing && <ActivityIndicator size="large" style={{ marginVertical: 12 }} />}
       {clusters && !analyzing && clusters.length === 0 && (
-        <Text style={{ marginBottom: 12 }}>No data</Text>
+        <View style={s.card}><Text style={s.muted}>No data</Text></View>
       )}
       {clusters && !analyzing && clusters.length > 0 && (
-        <View style={s.cards}>
-          {clusters.map((c) => (
-            <View key={c.group} style={s.summary}>
-              <Text style={s.tier}>{c.group}</Text>
-              <Text>Employees: {c.count}</Text>
-              <Text>Avg salary: ฿{Math.round(c.centroid).toLocaleString()}</Text>
+        <View>
+          {clusters.map((c, i) => (
+            <View key={c.group} style={[s.card, s.tierCard, { borderLeftColor: tierColors[i % 3] }]}>
+              <Text style={[s.tier, { color: tierColors[i % 3] }]}>{c.group}</Text>
+              <Text style={s.bigNum}>฿{Math.round(c.centroid).toLocaleString()}</Text>
+              <Text style={s.muted}>{c.count} employees</Text>
             </View>
           ))}
         </View>
       )}
 
       <Text style={s.section}>Employees ({employees.length})</Text>
-      {listLoading && <ActivityIndicator style={{ margin: 12 }} />}
+      {listLoading && <ActivityIndicator color="#4F46E5" style={{ margin: 12 }} />}
     </View>
   );
 
@@ -218,25 +255,32 @@ function DashboardScreen({ token, onLogout }) {
     <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={s.listContent}
           data={employees}
           keyExtractor={(e) => e.id}
           ListHeaderComponent={header}
           renderItem={({ item }) => (
-            <View style={s.item}>
+            <View style={[s.card, s.item]}>
+              <View style={[s.avatar, { backgroundColor: avatarColor(item.id) }]}>
+                <Text style={s.avatarText}>{initials(item.name)}</Text>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.name}>{item.name}</Text>
-                <Text>{item.position}</Text>
-                <Text>Salary: {Number(item.salary).toLocaleString()}</Text>
-                <Text style={item.status === 'Active' ? s.active : s.leave}>{item.status}</Text>
-              </View>
-              <View>
-                <TouchableOpacity style={s.small} onPress={() => toggleStatus(item.id)}>
-                  <Text style={s.btnText}>Toggle Status</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.small, s.danger]} onPress={() => remove(item)}>
-                  <Text style={s.btnText}>Delete</Text>
-                </TouchableOpacity>
+                <Text style={s.muted}>{item.position}</Text>
+                <Text style={s.salaryText}>฿{Number(item.salary).toLocaleString()}</Text>
+                <View style={[s.pill, item.status === 'Active' ? s.pillActive : s.pillLeave]}>
+                  <Text style={[s.pillText, { color: item.status === 'Active' ? '#15803D' : '#B45309' }]}>
+                    {item.status}
+                  </Text>
+                </View>
+                <View style={s.actions}>
+                  <TouchableOpacity style={s.outline} onPress={() => toggleStatus(item.id)}>
+                    <Text style={s.outlineText}>Toggle Status</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.danger} onPress={() => remove(item)}>
+                    <Text style={s.dangerText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -250,31 +294,59 @@ export default function App() {
   const [token, setToken] = useState(null);
   return (
     <View style={s.root}>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
       {token ? <DashboardScreen token={token} onLogout={() => setToken(null)} /> : <LoginScreen onLogin={setToken} />}
     </View>
   );
 }
 
+const PRIMARY = '#4F46E5';
+const shadow = Platform.select({
+  android: { elevation: 3 },
+  default: { shadowColor: '#1E1B4B', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+});
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f2f4f8', paddingTop: Platform.OS === 'android' ? 30 : 0 },
-  center: { flex: 1, justifyContent: 'center', padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 16, marginBottom: 12 },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 12 },
-  section: { fontSize: 18, fontWeight: '600', marginVertical: 8 },
-  input: { borderWidth: 1, borderColor: '#ccd', borderRadius: 8, padding: 10, marginBottom: 10, backgroundColor: '#fff' },
-  btn: { backgroundColor: '#2563eb', padding: 12, borderRadius: 8, alignItems: 'center' },
-  analyze: { backgroundColor: '#7c3aed', marginBottom: 12 },
-  btnText: { color: '#fff', fontWeight: '600' },
-  link: { color: '#2563eb', fontSize: 16 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  item: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10 },
-  name: { fontWeight: '700', fontSize: 16 },
-  active: { color: '#16a34a', fontWeight: '600' },
-  leave: { color: '#d97706', fontWeight: '600' },
-  small: { backgroundColor: '#2563eb', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, marginBottom: 6, alignItems: 'center' },
-  danger: { backgroundColor: '#dc2626' },
-  cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  summary: { flexGrow: 1, minWidth: 100, backgroundColor: '#fff', borderRadius: 10, padding: 12, borderLeftWidth: 4, borderLeftColor: '#7c3aed' },
+  root: { flex: 1, backgroundColor: '#F5F7FB', paddingTop: Platform.OS === 'android' ? 30 : 0 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
+  listContent: { padding: 16, width: '100%', maxWidth: 720, alignSelf: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, ...shadow },
+  loginCard: { width: '100%', maxWidth: 420 },
+  loginTitle: { fontSize: 28, fontWeight: '800', color: '#111827', textAlign: 'center' },
+  subtitle: { color: '#6B7280', textAlign: 'center', marginTop: 4, marginBottom: 20 },
+  hint: { color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 14 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title: { fontSize: 26, fontWeight: '800', color: '#111827' },
+  muted: { color: '#6B7280', fontSize: 14 },
+  logout: { borderWidth: 1, borderColor: PRIMARY, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
+  logoutText: { color: PRIMARY, fontWeight: '600' },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  stat: { flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 14, alignItems: 'center', ...shadow },
+  statNum: { fontSize: 24, fontWeight: '800', color: PRIMARY },
+  statLabel: { color: '#6B7280', fontSize: 12, marginTop: 2 },
+  section: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  input: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, marginBottom: 14, backgroundColor: '#F9FAFB', color: '#111827' },
+  inputFocused: { borderColor: PRIMARY, backgroundColor: '#fff' },
+  btn: { backgroundColor: PRIMARY, paddingVertical: 14, borderRadius: 12, alignItems: 'center', width: '100%' },
+  btnDisabled: { opacity: 0.7 },
+  analyze: { backgroundColor: '#7C3AED', marginBottom: 16 },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  tierCard: { borderLeftWidth: 5 },
   tier: { fontWeight: '700', marginBottom: 4 },
+  bigNum: { fontSize: 28, fontWeight: '800', color: '#111827' },
+  item: { flexDirection: 'row', alignItems: 'flex-start' },
+  avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  name: { fontWeight: '700', fontSize: 16, color: '#111827' },
+  salaryText: { fontWeight: '600', color: '#111827', marginTop: 4 },
+  pill: { alignSelf: 'flex-start', borderRadius: 999, paddingVertical: 3, paddingHorizontal: 10, marginTop: 8 },
+  pillActive: { backgroundColor: '#DCFCE7' },
+  pillLeave: { backgroundColor: '#FEF3C7' },
+  pillText: { fontSize: 12, fontWeight: '700' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  outline: { borderWidth: 1, borderColor: PRIMARY, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  outlineText: { color: PRIMARY, fontWeight: '600', fontSize: 13 },
+  danger: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  dangerText: { color: '#DC2626', fontWeight: '600', fontSize: 13 },
 });
