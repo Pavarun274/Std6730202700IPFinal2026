@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { kmeans1D } = require('./kmeans');
 const db = require('./db');
+const { mockEmployees } = require('./mockData');
 
 const app = express();
 app.use(cors());
@@ -168,10 +169,24 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
+// Seed mockEmployees into ProPav_employee only when the table is empty.
+const seedIfEmpty = async () => {
+  const [[{ n }]] = await db.query('SELECT COUNT(*) AS n FROM ProPav_employee');
+  if (n > 0) {
+    console.log(`seed skipped (table has ${n} rows)`);
+    return;
+  }
+  await db.query('INSERT INTO ProPav_employee (name, position, status, salary) VALUES ?', [
+    mockEmployees.map((e) => [e.name, e.position, e.status, e.salary]),
+  ]);
+  console.log(`seeded ${mockEmployees.length} mock employees into ProPav_employee`);
+};
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`HR backend listening on 0.0.0.0:${PORT}`);
   db.query('SELECT 1')
     .then(() => console.log('DB connected'))
-    .catch((err) => console.error('DB connection FAILED:', err.code || '', err.message));
+    .then(seedIfEmpty)
+    .catch((err) => console.error('DB startup FAILED:', err.code || '', err.message));
 });
