@@ -41,7 +41,8 @@ or `ulimit -n 65536`.
 
 ## Database setup
 Employees are stored in MySQL table `ProPav_employee`. The schema and seed rows are in
-`backend/schema.sql`:
+`backend/schema.sql`. `backend/ProPav_employee.sql` is the phpMyAdmin export of the live table from the
+instructor's server (database `ip_std6730202700`), and can be imported instead:
 
 ```sql
 CREATE TABLE IF NOT EXISTS ProPav_employee (

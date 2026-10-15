@@ -114,7 +114,6 @@ function LoginScreen({ onLogin }) {
           <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={submit} disabled={loading}>
             {loading ? <ActivityIndicator color={C.onAccent} /> : <Text style={s.btnText}>Login</Text>}
           </TouchableOpacity>
-          <Text style={s.hint}>Demo: admin / password123</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -469,7 +468,6 @@ const s = StyleSheet.create({
   loginCard: { width: '100%', maxWidth: 400, backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 32 },
   loginTitle: { fontSize: 24, fontWeight: '700', color: C.text },
   subtitle: { fontSize: 14, color: C.muted, marginTop: 4, marginBottom: 32 },
-  hint: { color: C.muted, fontSize: 12, marginTop: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24 },
   title: { fontSize: 24, fontWeight: '700', color: C.text },
   textBtn: { color: C.accent, fontSize: 14, fontWeight: '500' },
