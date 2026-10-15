@@ -1,6 +1,7 @@
-import { Platform } from 'react-native';
+// Default: the course server (backend runs on 119.59.102.161:3064, MySQL on localhost there).
+export const API_URL = 'http://119.59.102.161:3064/api';
 
-// Android emulator reaches the host machine via 10.0.2.2.
-// On a physical device, replace with your computer's LAN IP, e.g. 'http://192.168.1.10:3000'.
-const HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-export const API_URL = `http://${HOST}:3000/api`;
+// Local development: uncomment ONE of these (and comment out the line above) when running
+// the backend on your own machine (`cd backend && npm start`, port 3000).
+// Android emulator reaches the host via 10.0.2.2; a physical device needs your computer's LAN IP.
+// export const API_URL = 'http://localhost:3000/api';

@@ -1,22 +1,30 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { kmeans1D } = require('./kmeans');
+const db = require('./db');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let employees = [
-  { id: '1', name: 'John Doe', position: 'Software Engineer', status: 'Active', salary: 45000 },
-  { id: '2', name: 'Jane Smith', position: 'Junior Developer', status: 'Active', salary: 18500 },
-  { id: '3', name: 'Somchai Jaidee', position: 'Technical Lead', status: 'On Leave', salary: 85000 },
-  { id: '4', name: 'Mali Rakdee', position: 'QA Tester', status: 'Active', salary: 19000 },
-  { id: '5', name: 'David Chen', position: 'Product Manager', status: 'Active', salary: 72000 },
-  { id: '6', name: 'Anna Lee', position: 'Designer', status: 'On Leave', salary: 38000 },
-  { id: '7', name: 'Peter Parker', position: 'Intern', status: 'Active', salary: 15000 },
-  { id: '8', name: 'Nok Sriwong', position: 'Senior Engineer', status: 'Active', salary: 58000 },
-];
-let nextId = 9;
+const toEmployee = (r) => ({
+  id: String(r.id),
+  name: r.name,
+  position: r.position,
+  status: r.status,
+  salary: Number(r.salary),
+});
+
+const dbError = (res, err) => {
+  console.error(err);
+  res.status(500).json({ success: false, message: 'Database error' });
+};
+
+const getById = async (id) => {
+  const [rows] = await db.query('SELECT * FROM ProPav_employee WHERE id = ?', [id]);
+  return rows[0] ? toEmployee(rows[0]) : null;
+};
 
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
 
@@ -43,29 +51,44 @@ app.use('/api/employees', (req, res, next) => {
   next();
 });
 
-// Optional ?search=<text>: case-insensitive match on name, position or status.
-app.get('/api/employees', (req, res) => {
-  const raw = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
-  const q = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-  if (!q) return res.status(200).json(employees);
-  const matches = employees.filter((e) =>
-    [e.name, e.position, e.status].some((f) => String(f).toLowerCase().includes(q))
-  );
-  res.status(200).json(matches);
+// Optional ?search=<text>: match on name, position or status.
+app.get('/api/employees', async (req, res) => {
+  try {
+    const raw = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
+    const q = typeof raw === 'string' ? raw.trim() : '';
+    let rows;
+    if (!q) {
+      [rows] = await db.query('SELECT * FROM ProPav_employee ORDER BY id');
+    } else {
+      const like = `%${q}%`;
+      [rows] = await db.query(
+        'SELECT * FROM ProPav_employee WHERE name LIKE ? OR position LIKE ? OR status LIKE ? ORDER BY id',
+        [like, like, like]
+      );
+    }
+    res.status(200).json(rows.map(toEmployee));
+  } catch (err) {
+    dbError(res, err);
+  }
 });
 
 // Must be declared before any /api/employees/:id route.
-app.get('/api/employees/salary-clusters', (req, res) => {
-  const salaries = employees.map((e) => e.salary);
-  const clusters = kmeans1D(salaries, 3).map((c, i) => ({
-    group: `Tier ${i + 1}`,
-    centroid: c.centroid,
-    count: c.count,
-  }));
-  res.status(200).json({ success: true, clusters });
+app.get('/api/employees/salary-clusters', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT salary FROM ProPav_employee');
+    const salaries = rows.map((r) => Number(r.salary));
+    const clusters = kmeans1D(salaries, 3).map((c, i) => ({
+      group: `Tier ${i + 1}`,
+      centroid: c.centroid,
+      count: c.count,
+    }));
+    res.status(200).json({ success: true, clusters });
+  } catch (err) {
+    dbError(res, err);
+  }
 });
 
-app.post('/api/employees', (req, res) => {
+app.post('/api/employees', async (req, res) => {
   const { name, position, salary } = req.body || {};
   if (isBlank(name) || isBlank(position) || isBlank(salary)) {
     return res.status(400).json({ success: false, message: 'name, position and salary are required' });
@@ -74,46 +97,66 @@ app.post('/api/employees', (req, res) => {
   if (!Number.isFinite(sal) || sal <= 0) {
     return res.status(400).json({ success: false, message: 'salary must be a positive number' });
   }
-  const emp = {
-    id: String(nextId++),
-    name: String(name).trim(),
-    position: String(position).trim(),
-    status: 'Active',
-    salary: sal,
-  };
-  employees.push(emp);
-  res.status(201).json(emp);
-});
-
-app.put('/api/employees/:id', (req, res) => {
-  const emp = employees.find((e) => e.id === req.params.id);
-  if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
-  const { name, position, salary } = req.body || {};
-  if (isBlank(name) || isBlank(position) || isBlank(salary)) {
-    return res.status(400).json({ success: false, message: 'name, position and salary are required' });
+  try {
+    const [result] = await db.query(
+      "INSERT INTO ProPav_employee (name, position, status, salary) VALUES (?, ?, 'Active', ?)",
+      [String(name).trim(), String(position).trim(), sal]
+    );
+    res.status(201).json(await getById(result.insertId));
+  } catch (err) {
+    dbError(res, err);
   }
-  const sal = Number(salary);
-  if (!Number.isFinite(sal) || sal <= 0) {
-    return res.status(400).json({ success: false, message: 'salary must be a positive number' });
+});
+
+app.put('/api/employees/:id', async (req, res) => {
+  try {
+    if (!(await getById(req.params.id))) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+    const { name, position, salary } = req.body || {};
+    if (isBlank(name) || isBlank(position) || isBlank(salary)) {
+      return res.status(400).json({ success: false, message: 'name, position and salary are required' });
+    }
+    const sal = Number(salary);
+    if (!Number.isFinite(sal) || sal <= 0) {
+      return res.status(400).json({ success: false, message: 'salary must be a positive number' });
+    }
+    await db.query('UPDATE ProPav_employee SET name = ?, position = ?, salary = ? WHERE id = ?', [
+      String(name).trim(),
+      String(position).trim(),
+      sal,
+      req.params.id,
+    ]);
+    res.status(200).json(await getById(req.params.id));
+  } catch (err) {
+    dbError(res, err);
   }
-  emp.name = String(name).trim();
-  emp.position = String(position).trim();
-  emp.salary = sal;
-  res.status(200).json(emp);
 });
 
-app.put('/api/employees/:id/status', (req, res) => {
-  const emp = employees.find((e) => e.id === req.params.id);
-  if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
-  emp.status = emp.status === 'Active' ? 'On Leave' : 'Active';
-  res.status(200).json(emp);
+app.put('/api/employees/:id/status', async (req, res) => {
+  try {
+    const [result] = await db.query(
+      "UPDATE ProPav_employee SET status = IF(status = 'Active', 'On Leave', 'Active') WHERE id = ?",
+      [req.params.id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+    res.status(200).json(await getById(req.params.id));
+  } catch (err) {
+    dbError(res, err);
+  }
 });
 
-app.delete('/api/employees/:id', (req, res) => {
-  const idx = employees.findIndex((e) => e.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Employee not found' });
-  const [removed] = employees.splice(idx, 1);
-  res.status(200).json({ success: true, employee: removed });
+app.delete('/api/employees/:id', async (req, res) => {
+  try {
+    const emp = await getById(req.params.id);
+    if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
+    await db.query('DELETE FROM ProPav_employee WHERE id = ?', [req.params.id]);
+    res.status(200).json({ success: true, employee: emp });
+  } catch (err) {
+    dbError(res, err);
+  }
 });
 
 // Malformed JSON and other unexpected errors -> JSON responses, never a crash.
@@ -126,4 +169,9 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`HR backend listening on http://localhost:${PORT}`));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`HR backend listening on 0.0.0.0:${PORT}`);
+  db.query('SELECT 1')
+    .then(() => console.log('DB connected'))
+    .catch((err) => console.error('DB connection FAILED:', err.code || '', err.message));
+});
