@@ -85,6 +85,23 @@ app.post('/api/employees', (req, res) => {
   res.status(201).json(emp);
 });
 
+app.put('/api/employees/:id', (req, res) => {
+  const emp = employees.find((e) => e.id === req.params.id);
+  if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
+  const { name, position, salary } = req.body || {};
+  if (isBlank(name) || isBlank(position) || isBlank(salary)) {
+    return res.status(400).json({ success: false, message: 'name, position and salary are required' });
+  }
+  const sal = Number(salary);
+  if (!Number.isFinite(sal) || sal <= 0) {
+    return res.status(400).json({ success: false, message: 'salary must be a positive number' });
+  }
+  emp.name = String(name).trim();
+  emp.position = String(position).trim();
+  emp.salary = sal;
+  res.status(200).json(emp);
+});
+
 app.put('/api/employees/:id/status', (req, res) => {
   const emp = employees.find((e) => e.id === req.params.id);
   if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });

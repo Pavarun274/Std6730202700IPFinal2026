@@ -28,6 +28,13 @@ empty `search` returns all employees. `GET /api/employees/salary-clusters` alway
 uses all employees. The app debounces typing by 300ms and keeps the search applied
 after add/toggle/delete.
 
+## Edit employee
+`PUT /api/employees/:id` (Bearer token required) with JSON body `{ name, position, salary }`.
+Same validation as create: `400` if a field is missing/blank or salary is not a number > 0,
+`404` if the id does not exist, `401` without a token. Returns `200` with the updated
+employee (id and status unchanged). `PUT /api/employees/:id/status` still toggles status.
+In the app, press **Edit** on a card to edit inline, then **Save** or **Cancel**.
+
 ## Troubleshooting
 If Expo shows `EMFILE: too many open files`, run `brew install watchman`
 or `ulimit -n 65536`.
