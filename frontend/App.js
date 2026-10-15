@@ -398,11 +398,11 @@ function DashboardScreen({ token, onLogout }) {
                       <Field label="Position" value={editPosition} onChangeText={setEditPosition} />
                       <Field label="Salary" keyboardType="numeric" value={editSalary} onChangeText={setEditSalary} />
                       <View style={s.actions}>
-                        <TouchableOpacity style={s.smallPrimary} onPress={saveEdit}>
-                          <Text style={s.smallPrimaryText}>Save</Text>
+                        <TouchableOpacity style={[s.actBtn, s.actEdit]} activeOpacity={0.8} onPress={saveEdit}>
+                          <Text style={[s.actText, { color: '#FBF8F2' }]}>Save</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={s.smallBtn} onPress={cancelEdit}>
-                          <Text style={s.smallBtnText}>Cancel</Text>
+                        <TouchableOpacity style={[s.actBtn, s.actCancel]} activeOpacity={0.8} onPress={cancelEdit}>
+                          <Text style={[s.actText, { color: '#3B2F2A' }]}>Cancel</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -426,14 +426,14 @@ function DashboardScreen({ token, onLogout }) {
                         </View>
                       </View>
                       <View style={s.actions}>
-                        <TouchableOpacity style={s.smallBtn} onPress={() => startEdit(item)}>
-                          <Text style={s.smallBtnText}>Edit</Text>
+                        <TouchableOpacity style={[s.actBtn, s.actEdit]} activeOpacity={0.8} onPress={() => startEdit(item)}>
+                          <Text style={[s.actText, { color: '#FBF8F2' }]}>Edit</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={s.smallBtn} onPress={() => toggleStatus(item.id)}>
-                          <Text style={s.smallBtnText}>Toggle</Text>
+                        <TouchableOpacity style={[s.actBtn, s.actToggle]} activeOpacity={0.8} onPress={() => toggleStatus(item.id)}>
+                          <Text style={[s.actText, { color: '#5F7A4A' }]}>{item.status === 'Active' ? 'Set On Leave' : 'Set Active'}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[s.smallBtn, s.dangerBtn]} onPress={() => remove(item)}>
-                          <Text style={[s.smallBtnText, { color: C.danger }]}>Delete</Text>
+                        <TouchableOpacity style={[s.actBtn, s.actDelete]} activeOpacity={0.8} onPress={() => remove(item)}>
+                          <Text style={[s.actText, { color: '#B5544A' }]}>Delete</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -464,7 +464,7 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
   page: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   pagePad: { paddingHorizontal: 16 },
-  card: { backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12, shadowColor: '#3B2F2A', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
+  card: { backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12, ...Platform.select({ web: { boxShadow: '0 1px 6px rgba(59,47,42,0.06)' }, default: { shadowColor: '#3B2F2A', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } } }) },
   cardTitle: { fontSize: 16, fontWeight: '600', color: C.text },
   loginCard: { width: '100%', maxWidth: 400, backgroundColor: C.card, borderRadius: R, borderWidth: 1, borderColor: C.border, padding: 32 },
   loginTitle: { fontSize: 24, fontWeight: '700', color: C.text },
@@ -506,7 +506,13 @@ const s = StyleSheet.create({
   pillActive: { backgroundColor: C.successBg },
   pillLeave: { backgroundColor: C.warningBg },
   pillText: { fontSize: 12, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EFE7DA', width: '100%' },
+  actBtn: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actText: { fontWeight: '600', fontSize: 14, textAlign: 'center' },
+  actEdit: { backgroundColor: '#8B6F4E' },
+  actToggle: { backgroundColor: '#E6EBDC' },
+  actDelete: { backgroundColor: '#F4E1DC' },
+  actCancel: { borderWidth: 1, borderColor: '#E4DACB', backgroundColor: 'transparent' },
   smallBtn: { borderWidth: 1, borderColor: C.border, borderRadius: R, paddingVertical: 7, paddingHorizontal: 14 },
   dangerBtn: { borderColor: C.danger, backgroundColor: C.dangerBg },
   smallBtnText: { color: C.text, fontWeight: '500', fontSize: 13 },
